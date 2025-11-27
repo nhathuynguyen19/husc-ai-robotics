@@ -1,0 +1,11 @@
+fastapi==0.109.2 # Framework python giúp tạo API REST/GraphQL
+gunicorn==23.0.0 # Web server production cho ứng dụng python
+uvicorn[standard]==0.23.2 # Giúp python và web server giao tiếp
+sqlalchemy==2.0.20 # Thao tác với SQLite bằng đối tượng python
+pydantic[email]==2.12.5 # Xác thực dữ liệu, validate
+python-jose[cryptography]==3.3.0 # Xác thực và mã hóa JWT
+passlib[argon2]==1.7.4 # Mã hóa mật khẩu
+argon2-cffi==23.1.0 # Thuật toán băm mật khẩu Argon2
+python-multipart==0.0.6 # Xu lý form data trong FastAPI
+fastapi-mail==1.5.8 # Gửi email trong FastAPI
+python-dotenv==1.0.0 # Quản lý biến môi trường
