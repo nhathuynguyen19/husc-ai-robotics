@@ -9,10 +9,18 @@ load_dotenv()  # Load biến môi trường từ file .env
 # Sử dụng SQLite file tên là test.db
 SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dev.db")
 
-# connect_args={"check_same_thread": False} là cần thiết riêng cho SQLite
+# 2. Cấu hình connect_args động
+connect_args = {}
+if SQLALCHEMY_DATABASE_URL.startswith("sqlite"):
+    # Chỉ thêm tham số này nếu đang dùng SQLite
+    connect_args = {"check_same_thread": False}
+
+# 3. Tạo engine với connect_args phù hợp
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args=connect_args
 )
+    
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
