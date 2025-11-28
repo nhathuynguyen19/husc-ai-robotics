@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
-import models, schemas, database
+from backend import models, schemas, database
 from dotenv import load_dotenv
 import os
 

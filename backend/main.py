@@ -1,29 +1,80 @@
 from typing import Annotated
-from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
-from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy.orm import Session
-import models, schemas, auth, database
-from email_utils import send_verification_email
-from jose import jwt, JWTError
-from fastapi.staticfiles import StaticFiles # <--- Import cái này
-from fastapi.openapi.docs import get_redoc_html # <--- Import cái này
-from models import EventRole
+from pathlib import Path
 
-models.Base.metadata.create_all(bind=database.engine)
+from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks, Request, Form
+from fastapi.responses import HTMLResponse
+from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.staticfiles import StaticFiles
+from fastapi.openapi.docs import get_redoc_html
+from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
+
+from sqlalchemy.orm import Session
+from jose import jwt, JWTError
+
+from backend import models, schemas, auth, database
+from backend.models import EventRole
+from backend.email_utils import send_verification_email
+
+
+# ============================
+# PATH & TEMPLATE CONFIG
+# ============================
+
+BASE_DIR = Path(__file__).resolve().parent.parent  # husc-ai-robotics/
 
 app = FastAPI(docs_url="/docs", redoc_url=None)
 
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Session (bắt buộc nếu bạn dùng session để lưu token)
+app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
 
+# Trỏ templates → app/templates
+templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "templates"))
+
+# Trỏ static → app/static
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app" / "static")), name="static")
+
+# Tạo bảng DB
+models.Base.metadata.create_all(bind=database.engine)
+
+
+# ============================
+# CUSTOM REDOC
+# ============================
 @app.get("/redoc", include_in_schema=False)
 async def redoc_html():
     return get_redoc_html(
         openapi_url=app.openapi_url,
         title=app.title + " - ReDoc",
-        redoc_js_url="/static/redoc.standalone.js", # <--- Trỏ vào file nội bộ
+        redoc_js_url="/static/redoc.standalone.js",
     )
 
-# --- AUTH ---
+
+# ============================
+# AUTH HTML PAGES
+# ============================
+
+@app.get("/", response_class=HTMLResponse)
+def page_home(request: Request):
+    return templates.TemplateResponse("auth/login.html", {"request": request})
+
+@app.get("/login", response_class=HTMLResponse)
+def page_login(request: Request):
+    return templates.TemplateResponse("auth/login.html", {"request": request})
+
+@app.get("/register", response_class=HTMLResponse)
+def page_register(request: Request):
+    return templates.TemplateResponse("auth/register.html", {"request": request})
+
+@app.get("/forgot-password", response_class=HTMLResponse)
+def page_forgot_password(request: Request):
+    return templates.TemplateResponse("auth/forgot_password.html", {"request": request})
+
+
+# ============================
+# AUTH API (LOGIN – REGISTER – RESET)
+# ============================
+
 @app.post("/login", response_model=schemas.Token)
 async def login_for_access_token(
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
@@ -92,83 +143,88 @@ async def create_user(
     
     return new_user
 
-@app.get("/verify-email")
-async def verify_email(token: str, db: Session = Depends(database.get_db)):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Could not validate credentials or token expired",
+
+@app.post("/forgot-password")
+def forgot_password(email: str = Form(...), request: Request = None):
+    """Demo UI, không gửi mail thật."""
+    return templates.TemplateResponse(
+        "partials/success.html",
+        {"request": request, "message": f"Đã gửi hướng dẫn đặt lại mật khẩu đến {email}"},
     )
-    
+
+
+@app.get("/verify-email", response_class=HTMLResponse)
+async def verify_email(request: Request, token: str, db: Session = Depends(database.get_db)):
+    """Xác thực email."""
     try:
-        # Giải mã token
         payload = jwt.decode(token, auth.SECRET_KEY, algorithms=[auth.ALGORITHM])
-        email: str = payload.get("sub")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
-    
-    # Tìm user trong DB
+        email = payload.get("sub")
+    except:
+        return templates.TemplateResponse(
+            "partials/error.html",
+            {"request": request, "message": "Token hết hạn hoặc không hợp lệ"},
+        )
+
     user = db.query(models.User).filter(models.User.email == email).first()
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-        
+        return templates.TemplateResponse(
+            "partials/error.html",
+            {"request": request, "message": "User không tồn tại"},
+        )
+
     if user.status:
-        return {"message": "Account already activated"}
-    
-    # Kích hoạt tài khoản
+        return templates.TemplateResponse(
+            "partials/success.html",
+            {"request": request, "message": "Tài khoản đã được kích hoạt trước đó"},
+        )
+
     user.status = True
     db.commit()
-    
-    return {"message": "Account activated successfully. You can now login."}
 
-# --- USER ENDPOINTS ---
-@app.get("/users/me/", response_model=schemas.UserResponse)
-async def read_users_me(current_user: Annotated[models.User, Depends(auth.get_current_user)]):
-    return current_user
+    return templates.TemplateResponse(
+        "partials/success.html",
+        {"request": request, "message": "Kích hoạt thành công – bạn có thể đăng nhập"},
+    )
 
-# --- EVENT ENDPOINTS (Admin Create) ---
-@app.post("/events/", response_model=schemas.EventResponse)
-def create_event(
-    event: schemas.EventCreate, 
+
+# ============================
+# USER PAGES (HTML)
+# ============================
+
+@app.get("/events", response_class=HTMLResponse)
+def page_events(request: Request):
+    return templates.TemplateResponse("user/events.html", {"request": request})
+
+
+# ============================
+# ADMIN PAGES (HTML)
+# ============================
+
+@app.get("/admin/events", response_class=HTMLResponse)
+def admin_events_page(request: Request):
+    return templates.TemplateResponse("admin/events.html", {"request": request})
+
+
+# ============================
+# BACKEND API (EVENT CRUD)
+# ============================
+
+@app.get("/api/events", response_model=list[schemas.EventResponse])
+def get_events_api(
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_admin_user)
+    current_user=Depends(auth.get_current_user)
+):
+    return db.query(models.Event).all()
+
+
+@app.post("/api/events")
+def create_event_api(
+    event: schemas.EventCreate,
+    db: Session = Depends(database.get_db),
+    current_user=Depends(auth.get_current_admin_user)
 ):
     new_event = models.Event(**event.dict())
     db.add(new_event)
     db.commit()
     db.refresh(new_event)
     return new_event
-
-@app.get("/events/", response_model=list[schemas.EventResponse])
-def read_events(skip: int = 0, limit: int = 100, db: Session = Depends(database.get_db), current_user = Depends(auth.get_current_user)):
-    events = db.query(models.Event).offset(skip).limit(limit).all()
-    return events
-
-# --- USER-EVENT ACTION (User tham gia sự kiện) ---
-@app.post("/events/{event_id}/join")
-def join_event(
-    event_id: int,
-    role: str = EventRole.TA, # Query param hoặc body
-    db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(auth.get_current_user)
-):
-    # 1. Check event tồn tại
-    event = db.query(models.Event).filter(models.Event.event_id == event_id).first()
-    if not event:
-        raise HTTPException(status_code=404, detail="Event not found")
-    
-    # 2. Check đã tham gia chưa
-    existing_link = db.query(models.UserEvent).filter(
-        models.UserEvent.user_id == current_user.user_id,
-        models.UserEvent.event_id == event_id
-    ).first()
-    if existing_link:
-        raise HTTPException(status_code=400, detail="User already joined this event")
-
-    # 3. Tạo link
-    user_event = models.UserEvent(user_id=current_user.user_id, event_id=event_id, role=role)
-    db.add(user_event)
-    
-    db.commit()
-    return {"detail": "Joined event successfully"}
