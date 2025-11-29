@@ -16,6 +16,7 @@ class User(Base):
     role = Column(String, default='user')  # 'user', 'admin'
     name_bank = Column(String, nullable=True)
     bank_number = Column(String, nullable=True)
+    token_version = Column(Integer, default=0)
 
     # Quan hệ ngược lại bảng user_event
     events = relationship("UserEvent", back_populates="user")
@@ -26,12 +27,13 @@ class Event(Base):
     event_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
     name = Column(String, nullable=False)
     day_start = Column(Date, nullable=False)
-    from_time = Column(Integer, nullable=False) # 
-    to_time = Column(Integer, nullable=False)
+    start_period = Column(Integer, nullable=False) 
+    end_period = Column(Integer, nullable=False)
     number_of_student = Column(Integer, default=0)
-    status = Column(String, default="upcoming") # upcoming, ongoing, finished
+    status = Column(String, default=EventStatus.ONGOING.value) # ongoing, finished, deleted
     school_name = Column(String, nullable=True)
     max_user_joined = Column(Integer, nullable=False)
+    is_locked = Column(Boolean, default=False)
 
     # Quan hệ ngược lại bảng user_event
     participants = relationship("UserEvent", back_populates="event")

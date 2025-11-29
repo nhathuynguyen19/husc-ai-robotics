@@ -30,7 +30,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -44,16 +44,27 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub") # Token chứa email
+        token_version: int = payload.get("v") # Lấy version từ token
+        
         if email is None:
             raise credentials_exception
-        token_data = schemas.TokenData(email=email)
     except JWTError:
         raise credentials_exception
     
     # Tìm user theo email
-    user = db.query(models.User).filter(models.User.email == token_data.email).first()
+    user = db.query(models.User).filter(models.User.email == email).first()
     if user is None:
         raise credentials_exception
+    
+    # KIỂM TRA SINGLE SESSION
+    # Nếu version trong token khác version trong DB -> Token này đã cũ (đã đăng nhập nơi khác)
+    if token_version is not None and user.token_version != token_version:
+         raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Session expired or logged in from another device",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+         
     return user
 
 async def get_current_admin_user(current_user: Annotated[models.User, Depends(get_current_user)]):
