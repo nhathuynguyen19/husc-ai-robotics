@@ -14,10 +14,15 @@ router = APIRouter(
 )
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
-router.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 @router.get("/signin/", response_class=HTMLResponse)
 def page_signin(request: Request, user: models.User | None = Depends(security.get_user_from_cookie)):
     if user:
-        return RedirectResponse(url="/base.html", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
+    return templates.TemplateResponse("/pages/signin.html", {"request": request})
+
+@router.get("/signout/", response_class=HTMLResponse)
+def page_signin(request: Request, user: models.User | None = Depends(security.get_user_from_cookie)):
+    if user:
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse("/pages/signin.html", {"request": request})

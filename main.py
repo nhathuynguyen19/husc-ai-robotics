@@ -36,6 +36,8 @@ from routers.api.events import PERIOD_END_TIMES
 
 
 from routers.pages import auth as auth_page
+from routers.pages import base as base_page
+from routers.pages import partials as partials_page
 
 # from backend import models, schemas, auth, database
 # from backend.models import EventRole
@@ -49,6 +51,8 @@ from routers.pages import auth as auth_page
 
 
 app = FastAPI(docs_url="/docs", redoc_url=None)
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # limiter setup
 app.state.limiter = limiter
@@ -64,6 +68,8 @@ app.include_router(admin.router)
 
 # pages routers
 app.include_router(auth_page.router)
+app.include_router(base_page.router)
+app.include_router(partials_page.router)
 
 # ============================
 # CUSTOM REDOC

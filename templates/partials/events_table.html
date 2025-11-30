@@ -1,0 +1,114 @@
+<div class="card shadow-sm mt-5">
+    <div class="card-header bg-primary text-white text-center">
+        <h3 class="mb-0">Danh Sách Sự Kiện Sắp Diễn Ra</h3>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-bordered align-middle mb-0" id="events-table">
+                <thead class="table-light text-center">
+                    <tr>
+                        <th scope="col" class="text-nowrap">Thời Gian</th>
+                        <th scope="col" class="text-nowrap">Giờ Học</th>
+                        <th scope="col">Trường</th>
+                        <th scope="col">Tên Sự Kiện</th>
+                        <th scope="col">Số lượng học sinh</th>
+                        <th scope="col">Đứng lớp</th>
+                        <th scope="col">Hỗ Trợ</th>
+                        <th scope="col" style="min-width: 180px;">Hành Động</th>
+                    </tr>
+                </thead>
+                <tbody id="events-table-body">
+                    {% if not events %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">Chưa có sự kiện nào.</td>
+                    </tr>
+                    {% endif %}
+
+                    {% for event in events %}
+                    <tr class="align-middle">
+                        <td class="fw-bold text-secondary text-center">{{ event.day_str }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-info text-dark">{{ event.time_str }}</span>
+                            <div class="small text-muted">{{ event.period_detail }}</div>
+                        </td>
+                        <td>{{ event.school_name or '---' }}</td>
+                        <td class="fw-bold text-primary">{{ event.name }}</td>
+                        <td class="text-center fw-bold">{{ event.student_count }}</td>
+                        <td>{{ event.instructors }}</td>
+                        <td>{{ event.tas }}</td>
+
+                        <td class="text-center">
+                            <div class="d-flex justify-content-center gap-1">
+                                
+                                {# CASE 1: Đã hoàn thành (Attended) #}
+                                {% if event.attendance_status == 'attended' %}
+                                    <button class="btn btn-sm btn-success" disabled>
+                                        <i class="bi bi-check-circle-fill"></i> Đã xong
+                                    </button>
+
+                                {# CASE 2: Đã tham gia (nhưng chưa hoàn thành) #}
+                                {% elif event.is_joined %}
+                                    <button class="btn btn-sm btn-outline-danger"
+                                        hx-post="/api/events/{{ event.event_id }}/leave/"
+                                        hx-confirm="Bạn muốn hủy tham gia sự kiện này?"
+                                        hx-target="#events-table" {# Reload lại div chứa bảng #}
+                                        hx-swap="none">
+                                        Hủy
+                                    </button>
+
+                                    {% if event.is_ended %}
+                                        <button class="btn btn-sm btn-primary"
+                                            hx-post="/api/events/{{ event.event_id }}/attend/"
+                                            hx-target="#events-table"
+                                            hx-swap="none">
+                                            <i class="bi bi-check2-square"></i> Check-in
+                                        </button>
+                                    {% else %}
+                                        <button class="btn btn-sm btn-secondary" disabled title="Chưa kết thúc giờ học">
+                                            <i class="bi bi-clock"></i> Đợi...
+                                        </button>
+                                    {% endif %}
+
+                                {# CASE 3: Chưa tham gia #}
+                                {% else %}
+                                    {% if event.is_locked or event.is_full %}
+                                        <button class="btn btn-sm btn-secondary" disabled>
+                                            {% if event.is_locked %}Đã khóa{% else %}Đã đầy{% endif %}
+                                        </button>
+                                    {% else %}
+                                        <div class="btn-group">
+                                            <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                                Đăng ký
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li>
+                                                    <button class="dropdown-item"
+                                                        hx-post="/api/events/{{ event.event_id }}/join/"
+                                                        hx-vals='{"role": "ta"}'
+                                                        hx-target="#events-table"
+                                                        hx-swap="none">
+                                                        Hỗ trợ
+                                                    </button>
+                                                </li>
+                                                <li>
+                                                    <button class="dropdown-item"
+                                                        hx-post="/api/events/{{ event.event_id }}/join/"
+                                                        hx-vals='{"role": "instructor"}'
+                                                        hx-target="#events-table"
+                                                        hx-swap="none">
+                                                        Đứng lớp
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,38 @@
+<!-- Navbar -->
+<nav class="navbar navbar-expand-lg fixed-top bg-light navbar-light">
+  <div class="container">
+    <a class="navbar-brand" href="#">
+      <img id="steam-logo"
+        src="/static/images/logo.jpg" alt="steam-logo"
+        draggable="false" height="64" style="border-radius: 50%;"/>
+    </a>
+    <button class="navbar-toggler" type="button" data-mdb-collapse-init data-mdb-target="#navbarSupportedContent"
+      aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <i class="fas fa-bars">Logout</i>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ms-auto align-items-center">
+
+        {%if user and user.role == 'admin'%}
+        <li class="nav-item">
+          <a class="nav-link mx-2" href="#!"><i class="fas fa-heart pe-2">Lên lịch sự kiện</i></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link mx-2" href="#!"><i class="fas fa-heart pe-2">Cấp tài khoản</i></a>
+        </li>
+        {%endif%}
+        <li class="nav-item ms-3">
+          <a  class="btn btn-dark btn-rounded" 
+              href="#!"
+              hx-post="/api/auth/signout/"
+              hx-swap="none"
+              hx-trigger="click"
+          >
+          Logout
+        </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+<!-- Navbar -->

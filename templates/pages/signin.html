@@ -1,1 +1,114 @@
-hello
+<!DOCTYPE html>
+<!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
+<!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
+<!--[if IE 8]>         <html class="no-js lt-ie9"> <![endif]-->
+<!--[if gt IE 8]>      <html class="no-js"> <!--<![endif]-->
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>{% block title %}Đăng nhập{% endblock %}</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+        <!-- HTMX -->
+        <script src="https://unpkg.com/htmx.org@2.0.2"></script>
+    </head>
+    <body class="d-flex justify-content-center align-items-center vh-100 bg-light">
+        <!--[if lt IE 7]>
+            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="#">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+        
+        <div class="auth-card container justify-item-center my-auto" style="max-width: 400px;">
+            <form class="mx-auto p-4 rounded" 
+                  hx-post="/api/auth/signin/" 
+                  hx-trigger="submit" 
+                  hx-target="#signin-msg" 
+                  hx-swap="none"
+            >
+
+                <h2 class="text-center mb-4">Đăng nhập</h2>
+                <!-- Email input -->
+                <div data-mdb-input-init class="form-outline mb-4">
+                    <input type="username" 
+                    id="username" 
+                    name="username"
+                    class="form-control" 
+                    placeholder="Email"
+                    type="email"
+                    required
+                    />
+                </div>
+
+                <!-- Password input -->
+                <div data-mdb-input-init class="form-outline mb-4">
+                    <input type="password" 
+                    id="password" 
+                    name="password"
+                    class="form-control" 
+                    placeholder="Password"
+                    type="password"
+                    required
+                    />
+                </div>
+
+                <div id="signin-msg" class="msg"></div>
+
+                <!-- 2 column grid layout for inline styling -->
+                <div class="row mb-4">
+                    <div class="col d-flex justify-content-center">
+                    <!-- Checkbox -->
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" value="" id="form2Example31" checked />
+                        <label class="form-check-label" for="form2Example31"> Remember me </label>
+                    </div>
+                    </div>
+
+                    <div class="col">
+                    <!-- Simple link -->
+                    <a href="#!">Forgot password?</a>
+                    </div>
+                </div>
+
+                <!-- Submit button -->
+                 <div class="d-flex justify-content-center">
+                    <button id="" type="submit" data-mdb-button-init data-mdb-ripple-init class="btn btn-primary btn-block mb-4">Sign in</button>
+                </div>
+            </form>
+        </div>
+
+        <script>
+            document.addEventListener("htmx:afterRequest", function(evt) {
+                // Chỉ xử lý sự kiện từ form signin (dựa trên URL endpoint)
+                if (evt.detail.elt.getAttribute("hx-post") === "/api/auth/signin/") {
+                    
+                    if (evt.detail.successful) {
+                        // Trường hợp thành công: Backend trả về 200 OK và set cookie
+                        // Chúng ta cần redirect người dùng vào trang trong.
+                        window.location.href = "/"; 
+                    } else {
+                        // Trường hợp thất bại: Backend trả về lỗi 4xx (JSON)
+                        try {
+                            const xhr = evt.detail.xhr;
+                            const data = JSON.parse(xhr.responseText);
+                            const errorMsg = data.detail || "Đăng nhập thất bại";
+                            
+                            // Render HTML thông báo lỗi (sử dụng style từ partials/error.html)
+                            const errorHtml = `
+                                <div class="msg error" style="color: red; margin-top: 10px; padding: 10px; background: #ffe6e6; border: 1px solid red; border-radius: 4px;">
+                                    ${errorMsg}
+                                </div>
+                            `;
+                            document.getElementById("signin-msg").innerHTML = errorHtml;
+                        } catch (e) {
+                            console.error("Lỗi khi parse phản hồi:", e);
+                            document.getElementById("signin-msg").innerText = "Đã xảy ra lỗi không xác định.";
+                        }
+                    }
+                }
+            });
+        </script>
+        </div>
+    </body>
+</html>

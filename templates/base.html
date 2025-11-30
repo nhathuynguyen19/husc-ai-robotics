@@ -2,37 +2,32 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <title>{% block title %}Hệ thống Chấm công{% endblock %}</title>
-
-  <!-- CSS -->
-  <link rel="stylesheet" href="/static/css/style.css">
-
+  <title>{% block title %}base{% endblock %}</title>
+  <!-- Bootstrap CSS và JS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
   <!-- HTMX -->
   <script src="https://unpkg.com/htmx.org@2.0.2"></script>
 </head>
-<body>
+<body style="padding-top: 70px;">
 
 <header class="navbar">
-  <div class="navbar-left"><a href="/">Trung tâm ABC</a></div>
-  <nav class="navbar-right">
-
-    {% if request.session.get("role") == "admin" %}
-      <a href="/admin/events">Sự kiện</a>
-      <a href="/auth/logout">Đăng xuất</a>
-    {% elif request.session.get("role") == "user" %}
-      <a href="/events">Sự kiện</a>
-      <a href="/auth/logout">Đăng xuất</a>
-    {% else %}
-      <a href="/login">Đăng nhập</a>
-      <a href="/register">Đăng ký</a>
-    {% endif %}
-
-  </nav>
+  {% include "/partials/navbar.html" %}
 </header>
 
 <main class="container">
-  {% block content %}{% endblock %}
+  <div 
+      id="events-container"
+      hx-get="/partials/events-table" 
+      hx-trigger="load, event_updated from:body" 
+      hx-swap="innerHTML">
+      
+      <!-- Placeholder hiển thị trong lúc chờ backend render -->
+      <div class="text-center py-5">
+          <div class="spinner-border text-primary" role="status"></div>
+          <p>Đang tải events...</p>
+      </div>
+  </div>
 </main>
 
-<!-- Modal dùng chung -->
-<div id="modal"></div>
+</body>
