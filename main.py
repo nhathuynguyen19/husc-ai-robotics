@@ -30,6 +30,9 @@ import helpers.security as security
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from fastapi.responses import HTMLResponse, RedirectResponse # <--- Thêm RedirectResponse
+from datetime import date, datetime, time
+from typing import Optional
+from routers.api.events import PERIOD_END_TIMES
 
 # from backend import models, schemas, auth, database
 # from backend.models import EventRole
@@ -159,6 +162,87 @@ def page_events(request: Request, user: models.User | None = Depends(security.ge
         "request": request,
         "user": user  # Truyền user để hiển thị tên, avatar...
     })
+
+@app.get("/events/partial", response_class=HTMLResponse)
+async def view_events_table(
+    request: Request,
+    tab: str = "ongoing",
+    db: Session = Depends(database.get_db),
+    # [FIX] Đổi từ get_current_user sang get_user_from_cookie
+    current_user: models.User | None = Depends(security.get_user_from_cookie)
+):
+    # [THÊM] Kiểm tra nếu không có user (cookie hết hạn) thì trả về lỗi hoặc redirect
+    if not current_user:
+        # Trả về header để HTMX tự redirect về trang đăng nhập
+        response = HTMLResponse(content="Unauthorized", status_code=401)
+        response.headers["HX-Redirect"] = "/signin"
+        return response
+    
+    today = date.today()
+    now = datetime.now()
+    
+    # Query cơ bản: không lấy sự kiện đã xóa
+    query = db.query(models.Event).filter(models.Event.status != models.EventStatus.DELETED.value)
+    
+    # 1. Logic phân chia Tab
+    if tab == "upcoming":
+        # Sự kiện chưa diễn ra: Ngày bắt đầu > Hôm nay
+        query = query.filter(models.Event.day_start > today)
+    elif tab == "finished":
+        # Sự kiện đã hoàn thành: Ngày bắt đầu < Hôm nay (Giản lược logic)
+        # Hoặc chính xác hơn là kết hợp logic giờ kết thúc, nhưng để đơn giản theo ngày:
+        query = query.filter(models.Event.day_start < today)
+    else: # ongoing
+        # Sự kiện đang diễn ra: Ngày bắt đầu == Hôm nay
+        query = query.filter(models.Event.day_start == today)
+    
+    events = query.order_by(models.Event.day_start, models.Event.start_period).all()
+    
+    # 2. Xử lý dữ liệu hiển thị (Decorate data)
+    events_data = []
+    for e in events:
+        # Lấy thông tin tham gia của user hiện tại
+        user_event = db.query(models.UserEvent).filter_by(
+            user_id=current_user.user_id, 
+            event_id=e.event_id
+        ).first()
+        
+        is_joined = user_event is not None
+        user_role = user_event.role if is_joined else None
+        has_checked_in = (user_event.status == 'attended') if is_joined else False
+        
+        # Logic tính thời gian kết thúc cụ thể của sự kiện
+        end_hour, end_minute = PERIOD_END_TIMES.get(e.end_period, (23, 59))
+        event_end_dt = datetime.combine(e.day_start, time(hour=end_hour, minute=end_minute))
+        
+        # Kiểm tra sự kiện đã kết thúc về mặt thời gian chưa (để mở khóa checkbox)
+        is_time_finished = now > event_end_dt
+        
+        # Logic Tag "Finished": Tất cả người tham gia đều đã check-in
+        total_participants = len(e.participants)
+        checked_in_count = sum(1 for p in e.participants if p.status == 'attended')
+        # Tag hiện khi: có người tham gia VÀ tất cả đều đã check-in
+        show_finished_tag = (total_participants > 0) and (total_participants == checked_in_count)
+        
+        events_data.append({
+            "obj": e,
+            "is_joined": is_joined,
+            "user_role": user_role,
+            "has_checked_in": has_checked_in,
+            "is_time_finished": is_time_finished,
+            "show_finished_tag": show_finished_tag,
+            "participant_count": total_participants
+        })
+        
+    return templates.TemplateResponse(
+        "user/_events_table.html", 
+        {
+            "request": request, 
+            "events_data": events_data,
+            "current_tab": tab,
+            "current_user": current_user
+        }
+    )
 
 
 # ============================

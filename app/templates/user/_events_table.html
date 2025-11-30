@@ -1,42 +1,118 @@
-<table>
+<table class="table is-fullwidth is-striped">
   <thead>
     <tr>
-      <th>Ngày</th>
-      <th>Tiêu đề</th>
+      <th>Trạng thái</th>
+      <th>Thời gian</th>
+      <th>Sự kiện</th>
       <th>Địa điểm</th>
-      <th>Tham gia</th>
-      <th>Check-in</th>
+      <th>Số lượng</th>
+      <th>Thao tác (Join/Leave)</th>
+      <th>Xác nhận (Check-in)</th>
     </tr>
   </thead>
 
   <tbody>
-  {% for e in events %}
-    <tr id="ev-{{ e.id }}">
-      <td>{{ e.date }}</td>
-      <td>{{ e.title }}</td>
-      <td>{{ e.location }}</td>
-
+  {% for item in events_data %}
+    {% set e = item.obj %}
+    <tr id="ev-{{ e.event_id }}">
       <td>
-        {% if e.joined %}
-          <span class="joined">Đã tham gia</span>
+        {% if item.show_finished_tag %}
+          <span class="tag-finished">FINISHED</span>
         {% else %}
-          <button
-            hx-post="/events/{{ e.id }}/join"
-            hx-target="#ev-{{ e.id }}"
-            hx-swap="outerHTML">Tham gia</button>
+          <span class="tag-ongoing">ONGOING</span>
         {% endif %}
       </td>
 
       <td>
-        {% if e.checked_in %}
-          <span class="checked">Đã check-in</span>
+        <div><strong>{{ e.day_start }}</strong></div>
+        <small>Tiết: {{ e.start_period }} - {{ e.end_period }}</small>
+      </td>
+
+      <td>{{ e.name }}</td>
+      <td>{{ e.school_name }}</td>
+      
+      <td>{{ item.participant_count }} / {{ e.max_user_joined }}</td>
+
+      <td>
+        {% if item.is_joined %}
+          <div>
+            <span class="icon-text has-text-success">
+              ✓ Đã đăng ký ({{ item.user_role }})
+            </span>
+            
+            {% if not e.is_locked and not item.has_checked_in %}
+              <button class="button is-small is-danger is-outlined ml-2"
+                      hx-post="/api/events/{{ e.event_id }}/leave/"
+                      hx-confirm="Bạn có chắc chắn muốn rời sự kiện này?"
+                      hx-target="#events-table" 
+                      hx-swap="innerHTML">
+                Rời đi
+              </button>
+            {% endif %}
+          </div>
         {% else %}
-          <button
-            hx-post="/events/{{ e.id }}/checkin"
-            hx-target="#ev-{{ e.id }}"
-            hx-swap="outerHTML">Check-in</button>
+          {% if e.is_locked %}
+             <span class="has-text-grey">🔒 Đã khóa</span>
+          {% else %}
+             <details>
+                <summary class="button is-small is-primary">Đăng ký tham gia</summary>
+                <form class="mt-2 box p-2" 
+                      hx-post="/api/events/{{ e.event_id }}/join/"
+                      hx-target="#events-table" 
+                      hx-swap="innerHTML"
+                      style="position: absolute; z-index: 10; min-width: 200px;">
+                  
+                  <input type="hidden" name="event_id" value="{{ e.event_id }}">
+                  
+                  <div class="field">
+                    <label class="label is-small">Vai trò:</label>
+                    <div class="control">
+                      <div class="select is-small is-fullwidth">
+                        <select name="role">
+                          <option value="teaching_assistant">Trợ giảng (TA)</option>
+                          <option value="instructor">Người dạy chính</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="field mt-2">
+                    <button class="button is-small is-success is-fullwidth" type="submit">
+                      Xác nhận Join
+                    </button>
+                  </div>
+                </form>
+             </details>
+          {% endif %}
         {% endif %}
       </td>
+
+      <td>
+        {% if item.is_joined %}
+            {% if item.has_checked_in %}
+                <span class="has-text-success font-weight-bold">Đã tham gia</span>
+            {% else %}
+                <form hx-post="/api/events/{{ e.event_id }}/attend/"
+                      hx-target="#ev-{{ e.event_id }}"
+                      hx-swap="outerHTML"> <label class="checkbox">
+                        <input type="checkbox" 
+                               {% if not item.is_time_finished %}disabled title="Sự kiện chưa kết thúc"{% endif %}
+                               onchange="if(confirm('Xác nhận bạn đã tham gia sự kiện này?')) htmx.trigger(this.form, 'submit')">
+                        Xác nhận
+                    </label>
+                </form>
+                {% if not item.is_time_finished %}
+                    <br><small class="has-text-grey">(Mở sau khi hết giờ)</small>
+                {% endif %}
+            {% endif %}
+        {% else %}
+            <span class="has-text-grey">-</span>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr>
+      <td colspan="7" class="has-text-centered">Không có sự kiện nào trong danh mục này.</td>
     </tr>
   {% endfor %}
   </tbody>
