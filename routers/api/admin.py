@@ -2,14 +2,14 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List
 import database, models, schemas
-import core.security as security 
+import helpers.security as security 
 
 # Tạo Router riêng, prefix là /admin
 # dependencies=[Depends(auth.get_current_admin_user)] đảm bảo TẤT CẢ các API trong này đều bắt buộc quyền Admin
 router = APIRouter(
     prefix="/api/admin",
     tags=["Admin Management"],
-    dependencies=[Depends(security.get_current_admin_user)] 
+    dependencies=[Depends(security.get_current_admin_user)]
 )
 
 # xem 1 user chi tiết (Admin)

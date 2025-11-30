@@ -10,9 +10,9 @@ import models, schemas, database
 from dotenv import load_dotenv
 import os
 from utils.email_utils import send_verification_email
-import core.security as security
+import helpers.security as security
 import re
-from core.limiter import limiter
+from helpers.limiter import limiter
 from fastapi.responses import RedirectResponse
 
 router = APIRouter(

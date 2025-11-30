@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 import models, schemas, database
-import core.security as security
+import helpers.security as security
 from schemas import EventRole
 from datetime import datetime, date, time
 

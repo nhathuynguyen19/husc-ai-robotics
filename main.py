@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from core.limiter import limiter
+from helpers.limiter import limiter
 from typing import Annotated
 from pathlib import Path
 
@@ -25,7 +25,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.docs import get_redoc_html
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
-import core.security as security
+import helpers.security as security
 
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
@@ -112,10 +112,6 @@ async def page_home(request: Request, db: Session = Depends(database.get_db)):
 def page_login(request: Request):
     return templates.TemplateResponse("auth/login.html", {"request": request})
 
-@app.get("/register/", response_class=HTMLResponse)
-def page_register(request: Request):
-    return templates.TemplateResponse("auth/register.html", {"request": request})
-
 @app.get("/forgot-password/", response_class=HTMLResponse)
 def page_forgot_password(request: Request):
     return templates.TemplateResponse("auth/forgot_password.html", {"request": request})
@@ -168,8 +164,28 @@ async def verify_email(request: Request, token: str, db: Session = Depends(datab
 # ============================
 
 @app.get("/events", response_class=HTMLResponse)
-def page_events(request: Request):
-    return templates.TemplateResponse("user/events.html", {"request": request})
+def page_events(request: Request, db: Session = Depends(database.get_db)):
+    if token.startswith("Bearer "):
+        token = token.split(" ")[1]
+        
+        try:
+            # 2. Giải mã token để lấy email
+            payload = jwt.decode(token, security.SECRET_KEY, algorithms=[security.ALGORITHM])
+            email: str = payload.get("sub")
+            
+            # 3. Kiểm tra user trong DB (để chắc chắn user chưa bị xóa/khóa)
+            if email:
+                user = db.query(models.User).filter(models.User.email == email).first()
+                if user and user.status:
+                    # 4. Token hợp lệ -> Chuyển hướng sang trang events
+                    return RedirectResponse(url="/events", status_code=302)
+                    
+        except (jwt.JWTError, Exception):
+            # Nếu token lỗi, hết hạn hoặc user không tồn tại -> Bỏ qua, xuống dưới hiện login
+            pass
+
+    # 5. Nếu không có token hợp lệ -> Hiện trang đăng nhập
+    return templates.TemplateResponse("user/login.html", {"request": request})
 
 
 # ============================
