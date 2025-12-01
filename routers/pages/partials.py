@@ -49,7 +49,7 @@ TAB_TITLES = {
 
 # Hàm helper chuyển tiết học sang giờ (7h - 13h) để dùng trong template
 def format_period(period: int) -> str:
-    hour = 7 + (period - 1) if period <= 6 else 13 + (period - 7)
+    hour = 7 + (period - 1) if period <= 4 else 13 + (period - 5)
     return f"{hour}h00"
 
 router = APIRouter(
@@ -125,8 +125,12 @@ async def render_events_table(
     # 4. Build View Model (Giữ nguyên logic cũ của bạn)
     events_view = []
     for event in filtered_events:
-        instructors = [p.user.full_name for p in event.participants if p.role == 'instructor' and p.user]
-        tas = [p.user.full_name for p in event.participants if p.role == 'ta' and p.user]
+        instructors = [p.user.full_name 
+                       for p in event.participants 
+                       if p.role == 'instructor' and p.user and p.user.full_name]
+        tas = [p.user.full_name 
+               for p in event.participants 
+               if p.role == 'ta' and p.user and p.user.full_name]
         
         current_participant = next((p for p in event.participants if p.user_id == current_user.user_id), None)
         is_joined = current_participant is not None

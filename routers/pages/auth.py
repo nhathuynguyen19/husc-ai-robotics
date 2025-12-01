@@ -24,5 +24,5 @@ def page_signin(request: Request, user: models.User | None = Depends(security.ge
 @router.get("/signout/", response_class=HTMLResponse)
 def page_signin(request: Request, user: models.User | None = Depends(security.get_user_from_cookie)):
     if user:
-        return RedirectResponse(url="/", status_code=302)
+        return RedirectResponse(url="/auth/signin", status_code=302)
     return templates.TemplateResponse("/pages/signin.html", {"request": request})

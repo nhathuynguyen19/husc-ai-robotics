@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request, Depends, Query
+from fastapi import APIRouter, Request, Depends, Query, status
 from fastapi.responses import HTMLResponse, RedirectResponse
 import models
 import helpers.security as security
@@ -15,8 +15,21 @@ router = APIRouter(
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
-@router.get("/", response_class=HTMLResponse)
-def get_home(request: Request, 
+@router.get("/")
+async def root(
+    request: Request, 
+    user: models.User | None = Depends(security.get_user_from_cookie)
+):
+    if user:
+        return templates.TemplateResponse("/pages/dashboard.html", {
+            "request": request, 
+            "user": user
+            })
+    
+    return RedirectResponse(url="/auth/signin", status_code=status.HTTP_302_FOUND)
+
+@router.get("/events", response_class=HTMLResponse)
+def get_events(request: Request, 
              tab: str = Query("upcoming", enum=["upcoming", "ongoing", "finished"]),
              user: models.User | None = Depends(security.get_user_from_cookie)
 ):

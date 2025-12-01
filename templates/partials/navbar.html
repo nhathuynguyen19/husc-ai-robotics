@@ -20,8 +20,6 @@
     <div class="collapse navbar-collapse" id="navbarSupportedContent">
       <ul class="navbar-nav ms-auto align-items-center mb-2 mb-lg-0">
 
-        {% if user and user.role == 'admin' %}
-        
         <li class="nav-item">
           <a class="nav-link mx-2 fw-semibold {% if request.url.path == '/' %}active text-primary{% endif %}" href="/">
             <i class="bi bi-grid me-1"></i> Tổng quan
@@ -29,19 +27,26 @@
         </li>
 
         <li class="nav-item">
-          <a class="nav-link mx-2 fw-semibold {% if '/events' in request.url.path %}active text-primary{% endif %}" href="/events">
+          <a class="nav-link mx-2 fw-semibold {% if '/events' in request.url.path and '/events/create' not in request.url.path %}active text-primary{% endif %}" href="/events">
              <i class="bi bi-calendar3 me-1"></i> Sự kiện
           </a>
         </li>
 
+        {% if user and user.role == 'admin' %}
         <li class="nav-item dropdown">
-            <a class="nav-link mx-2 fw-semibold dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link mx-2 fw-semibold dropdown-toggle {% if '/events/create' in request.url.path or '/admin/users/create' in request.url.path %}active text-primary{% endif %}" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                 <i class="bi bi-gear me-1"></i> Quản trị
             </a>
             <ul class="dropdown-menu dropdown-menu-end border-0 shadow" aria-labelledby="adminDropdown">
-                <li><a class="dropdown-item" href="/events/create"><i class="bi bi-plus-circle me-2 text-success"></i>Tạo sự kiện mới</a></li>
+                <li>
+                  <a class="dropdown-item {% if '/events/create' in request.url.path %}active{% endif %}" href="/events/create">
+                <i class="bi bi-plus-circle me-2 text-success"></i>Tạo sự kiện mới</a></li>
+
                 <li><hr class="dropdown-divider"></li>
-                <li><a class="dropdown-item" href="#!"><i class="bi bi-person-plus me-2 text-primary"></i>Cấp tài khoản</a></li>
+
+                <li>
+                  <a class="dropdown-item {% if '/admin/users/create' in request.url.path %}active{% endif %}" href="/admin/users/create">
+                <i class="bi bi-person-plus me-2 text-primary"></i>Cấp tài khoản</a></li>
             </ul>
         </li>
         {% endif %}

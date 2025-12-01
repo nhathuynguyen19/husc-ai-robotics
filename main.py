@@ -39,6 +39,8 @@ from routers.pages import auth as auth_page
 from routers.pages import base as base_page
 from routers.pages import partials as partials_page
 from routers.pages import events as events_page
+from routers.pages import admin as pages_admin
+
 # from backend import models, schemas, auth, database
 # from backend.models import EventRole
 # from backend.email_utils import send_verification_email
@@ -71,6 +73,7 @@ app.include_router(auth_page.router)
 app.include_router(base_page.router)
 app.include_router(partials_page.router)
 app.include_router(events_page.router)
+app.include_router(pages_admin.router)
 
 # ============================
 # CUSTOM REDOC
