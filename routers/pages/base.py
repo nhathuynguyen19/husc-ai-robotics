@@ -47,6 +47,10 @@ def get_event_times(event_day: date, start_period: int, end_period: int):
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 
+@router.get("/ping")
+async def ping():
+    return {"status": "OK"}
+
 @router.get("/")
 async def root(
     request: Request, 
