@@ -191,6 +191,7 @@ def join_event(
     participant_count = db.query(models.UserEvent).filter(
         models.UserEvent.event_id == event_id
     ).count()
+    
     if participant_count >= event.max_user_joined:
         raise HTTPException(status_code=400, detail="Event has reached maximum number of participants")
 

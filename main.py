@@ -88,6 +88,26 @@ async def redoc_html():
     
 # Tạo bảng DB
 models.Base.metadata.create_all(bind=database.engine)
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    
+    # Cấu hình CSP:
+    # - script-src: Thêm 'unsafe-eval' để sửa lỗi bạn gặp.
+    # - Thêm các domain CDN (jsdelivr, unpkg) để load thư viện.
+    # - style-src/font-src: Cho phép Bootstrap và Google Fonts.
+    csp_policy = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+        "font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "worker-src 'self' blob:;"
+    )
+    
+    response.headers["Content-Security-Policy"] = csp_policy
+    return response
     
 # @app.get("/", response_class=HTMLResponse)
 # async def page_home(request: Request, user: models.User | None = Depends(security.get_user_from_cookie)):
