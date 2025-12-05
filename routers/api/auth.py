@@ -13,7 +13,7 @@ from utils.email_utils import send_verification_email, send_reset_password_email
 import helpers.security as security
 import re
 from helpers.limiter import limiter
-from helpers.security import create_reset_password_token, verify_reset_password_token
+from helpers.security import create_reset_password_token, verify_and_reset_password
 from models import User
 from pathlib import Path
 from helpers.security import get_password_hash
@@ -100,7 +100,7 @@ async def signin_for_access_token(
     user = db.query(models.User).filter(models.User.email == form_data.username).first()
     
     # 2. Xử lý trường hợp User chưa tồn tại
-    if not user:
+    if not user or user.status or not user.is_deleted:
         # Nếu DB rỗng -> Tạo Admin đầu tiên
         user_count = db.query(models.User).count()
         if user_count == 0:
@@ -160,7 +160,9 @@ async def signin_for_access_token(
     
     return {"access_token": access_token, "token_type": "bearer"}
 
+
 @router.post("/forgot_password")
+@limiter.limit('20/minute')
 async def forgot_password(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -170,7 +172,7 @@ async def forgot_password(
     user = db.query(User).filter(User.email == email).first()
 
     # Email không tồn tại → quay lại trang forgot & báo lỗi
-    if not user:
+    if not user and user.status and not user.is_deleted:
         return templates.TemplateResponse(
             "pages/auth/forgot_password.html",
             {
@@ -196,12 +198,14 @@ async def forgot_password(
 
 
 @router.post("/reset_password/")
+@limiter.limit('5/minute')
 async def reset_password(
+    request: Request,
     token: str = Form(...),
     new_password: str = Form(...),
     db: Session = Depends(database.get_db),
 ):
-    email = verify_reset_password_token(token)
+    email = verify_and_reset_password(token)
 
     if not email:
         return HTMLResponse("""
@@ -212,10 +216,29 @@ async def reset_password(
 
     user = db.query(User).filter(User.email == email).first()
 
-    if not user:
+    if not user or not user.status or user.is_deleted:
         return HTMLResponse("""
         <div class="alert alert-danger mt-3">
             Không tìm thấy tài khoản!
+        </div>
+        """)
+
+    if len(new_password) < 8:
+        return HTMLResponse("""
+        <div class="alert alert-danger mt-3">
+            Mật khẩu phải có ít nhất 8 ký tự!
+        </div>
+        """)
+    if not re.search(r"\d", new_password):
+        return HTMLResponse("""
+        <div class="alert alert-danger mt-3">
+            Mật khẩu phải chứa ít nhất một chữ số!
+        </div>
+        """)
+    if not re.search(r"[a-zA-Z]", new_password):
+        return HTMLResponse("""
+        <div class="alert alert-danger mt-3">
+            Mật khẩu phải chứa ít nhất một chữ cái!
         </div>
         """)
 
@@ -257,7 +280,7 @@ async def send_verification_email_endpoint(
 ):
     # Tìm user theo email
     user = db.query(models.User).filter(models.User.email == email_request.email).first()
-    if not user:
+    if not user or user.status or not user.is_deleted:
         raise HTTPException(status_code=404, detail="User not found")
     
     if user.status:
@@ -298,7 +321,7 @@ async def verify_email(token: str, db: Session = Depends(database.get_db)):
     
     # Tìm user trong DB
     user = db.query(models.User).filter(models.User.email == email).first()
-    if not user:
+    if not user or user.status or not user.is_deleted:
         raise HTTPException(status_code=404, detail="User not found")
         
     # Check if already activated

@@ -1,4 +1,5 @@
 import os
+from time import timezone
 from dotenv import load_dotenv
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer
@@ -147,16 +148,53 @@ async def get_current_admin_from_cookie(
     
     return user
 
-def create_reset_password_token(email: str):
-    expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode = {"sub": email, "purpose": "reset_password", "exp": expire}
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+def create_reset_password_token(user):
+    # Tạo secret riêng cho user này tại thời điểm này
+    # user.hashed_password là chuỗi hash hiện tại trong DB
+    dynamic_secret = f"{SECRET_KEY}{user.hashed_password}"
+    
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(minutes=15)
+    
+    # Payload
+    to_encode = {
+        "sub": user.email, 
+        "exp": expire, 
+        "type": "reset"
+    }
+    
+    # Encode bằng dynamic secret
+    return jwt.encode(to_encode, dynamic_secret, algorithm=ALGORITHM)
 
-def verify_reset_password_token(token: str):
+def verify_and_reset_password(token: str, new_password: str, db: Session):
+    # B1: Decode token KHÔNG verify signature trước để lấy email (sub)
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("purpose") != "reset_password":
-            return None
-        return payload.get("sub")  # Trả email
-    except:
-        return None
+        # options={"verify_signature": False} giúp đọc payload mà chưa cần key
+        payload = jwt.decode(token, options={"verify_signature": False})
+        email = payload.get("sub")
+    except jwt.DecodeError:
+        raise HTTPException(status_code=400, detail="Invalid token format")
+
+    # B2: Lấy user từ database bằng email
+    user = db.query(models.User).filter(models.User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # B3: Tái tạo lại dynamic secret dựa trên mật khẩu HIỆN TẠI của user
+    dynamic_secret = f"{SECRET_KEY}{user.hashed_password}"
+
+    # B4: Bây giờ mới Verify signature chính thức
+    try:
+        jwt.decode(token, dynamic_secret, algorithms=[ALGORITHM])
+    except jwt.InvalidSignatureError:
+        # Đây là trường hợp REUSE TOKEN:
+        # Vì mật khẩu đã đổi -> hash đã đổi -> secret đã đổi -> signature cũ sai
+        raise HTTPException(status_code=400, detail="Token has been used or is invalid")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=400, detail="Token expired")
+
+    # B5: Nếu verify OK, tiến hành đổi mật khẩu
+    user.hashed_password = get_password_hash(new_password)
+    db.commit()
+    
+    return {"message": "Password reset successfully"}

@@ -5,7 +5,7 @@ import helpers.security as security
 from pathlib import Path
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from helpers.security import verify_reset_password_token
+from helpers.security import verify_and_reset_password
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
