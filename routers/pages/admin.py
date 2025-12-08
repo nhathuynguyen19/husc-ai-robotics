@@ -164,7 +164,7 @@ async def list_users(
     if not isinstance(current_user, models.User):
         return current_user
 
-    LIMIT = 10
+    LIMIT = 100
     query = db.query(models.User).filter(models.User.is_deleted == False)
 
     # Logic Tìm kiếm
